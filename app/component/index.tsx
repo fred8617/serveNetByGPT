@@ -3,6 +3,7 @@ import gpt3p5Top1OriginJson from "./gpt-3.5-turbo/top1/checkpoint.json";
 import gpt3p5Top5OriginJson from "./gpt-3.5-turbo/top5/checkpoint.json";
 import gpt4Top1OriginJson from "./gpt-4-0125-preview/top1/checkpoint.json";
 import gpt4Top5OriginJson from "./gpt-4-0125-preview/top5/checkpoint.json";
+import gpt3p5FinetuneTop1Json from "./ft:gpt-3.5-turbo-0125:personal::92f0eZFZ/top1/checkpoint.json";
 import serveNetTop5Benchmark from "./serveNet-top5-benchmark.json";
 import serveNetTop1Benchmark from "./serveNet-top1-benchmark.json";
 import { Table, Divider, Typography, Tooltip, Slider, Form, Affix } from "antd";
@@ -37,10 +38,32 @@ const getClassifications = (data: Data) => {
 const allClassifications = [...new Set(getClassifications(gpt3p5Top1Origin))];
 console.log(gpt3p5Top1Origin.fullPrompts);
 
-console.log([
+console.log("gpt-3.5-classifiaction", [
   ...new Set(Object.values(gpt3p5Top1Origin.results).map((r) => r.result)),
 ]);
 console.log(
+  "gpt-3.5 not in the classifiactions",
+  Object.values(gpt3p5Top1Origin.results).filter(
+    (r) => !allClassifications.includes(r.result)
+  )
+);
+console.log("gpt-3.5-ft-classifiaction", [
+  ...new Set(
+    Object.values(gpt3p5FinetuneTop1Json.results).map((r) => r.result)
+  ),
+]);
+console.log(
+  "gpt-3.5-ft not in the classifiactions",
+  Object.values(gpt3p5FinetuneTop1Json.results).filter(
+    (r) => !allClassifications.includes(r.result)
+  )
+);
+
+console.log("gpt-4-classifiaction", [
+  ...new Set(Object.values(gpt4Top1Origin.results).map((r) => r.result)),
+]);
+console.log(
+  "gpt-4 not in the classifiactions",
   Object.values(gpt4Top1Origin.results).filter(
     (r) => !allClassifications.includes(r.result)
   )
@@ -75,38 +98,45 @@ export default function Page() {
   const [sampleNumber, setSampleNumber] = useState<number>(
     gpt3p5Top1Origin.index
   );
-  const { gpt3p5Top5, gpt4Top1, gpt4Top5, gpt3p5Top1 } = useMemo(() => {
-    const gpt3p5Top5: Data = {
-      index: sampleNumber,
-      fullPrompts: gpt3p5Top5Origin.fullPrompts,
-      results: {},
-    };
-    const gpt4Top1: Data = {
-      index: sampleNumber,
-      fullPrompts: gpt4Top1Origin.fullPrompts,
-      results: {},
-    };
-    const gpt4Top5: Data = {
-      index: sampleNumber,
-      fullPrompts: gpt4Top5Origin.fullPrompts,
-      results: {},
-    };
-    const gpt3p5Top1: Data = {
-      index: sampleNumber,
-      fullPrompts: gpt3p5Top1Origin.fullPrompts,
-      results: sampleSize(
-        Object.entries(gpt3p5Top1Origin.results),
-        sampleNumber
-      ).reduce((prev, [key, value], index) => {
-        prev[index] = value;
-        gpt3p5Top5.results[index] = gpt3p5Top5Origin.results[key];
-        gpt4Top1.results[index] = gpt4Top1Origin.results[key];
-        gpt4Top5.results[index] = gpt4Top5Origin.results[key];
-        return prev;
-      }, {}),
-    };
-    return { gpt3p5Top5, gpt4Top1, gpt4Top5, gpt3p5Top1 };
-  }, [sampleNumber]);
+  const { gpt3p5Top5, gpt4Top1, gpt4Top5, gpt3p5Top1, gpt3p5FinetuneTop1 } =
+    useMemo(() => {
+      const gpt3p5Top5: Data = {
+        index: sampleNumber,
+        fullPrompts: gpt3p5Top5Origin.fullPrompts,
+        results: {},
+      };
+      const gpt4Top1: Data = {
+        index: sampleNumber,
+        fullPrompts: gpt4Top1Origin.fullPrompts,
+        results: {},
+      };
+      const gpt4Top5: Data = {
+        index: sampleNumber,
+        fullPrompts: gpt4Top5Origin.fullPrompts,
+        results: {},
+      };
+      const gpt3p5Top1: Data = {
+        index: sampleNumber,
+        fullPrompts: gpt3p5Top1Origin.fullPrompts,
+        results: sampleSize(
+          Object.entries(gpt3p5Top1Origin.results),
+          sampleNumber
+        ).reduce((prev, [key, value], index) => {
+          prev[index] = value;
+          gpt3p5Top5.results[index] = gpt3p5Top5Origin.results[key];
+          gpt4Top1.results[index] = gpt4Top1Origin.results[key];
+          gpt4Top5.results[index] = gpt4Top5Origin.results[key];
+          return prev;
+        }, {}),
+      };
+      return {
+        gpt3p5Top5,
+        gpt4Top1,
+        gpt4Top5,
+        gpt3p5Top1,
+        gpt3p5FinetuneTop1: gpt3p5FinetuneTop1Json,
+      };
+    }, [sampleNumber]);
 
   const classifications = useMemo(
     () => [
@@ -115,18 +145,31 @@ export default function Page() {
         ...getClassifications(gpt3p5Top5),
         ...getClassifications(gpt4Top1),
         ...getClassifications(gpt4Top5),
+        ...getClassifications(gpt3p5FinetuneTop1),
       ]),
     ],
     [gpt3p5Top1, gpt3p5Top5, gpt4Top1, gpt4Top5]
   );
-  const { gpt3p5Top1Acc, gpt3p5Top5Acc, gpt4Top1Acc, gpt4Top5Acc } =
-    useMemo(() => {
-      const gpt3p5Top1Acc = getAcc(gpt3p5Top1);
-      const gpt3p5Top5Acc = getAcc(gpt3p5Top5);
-      const gpt4Top1Acc = getAcc(gpt4Top1);
-      const gpt4Top5Acc = getAcc(gpt4Top5);
-      return { gpt3p5Top1Acc, gpt3p5Top5Acc, gpt4Top1Acc, gpt4Top5Acc };
-    }, [gpt3p5Top1, gpt3p5Top5, gpt4Top1, gpt4Top5]);
+  const {
+    gpt3p5Top1Acc,
+    gpt3p5Top5Acc,
+    gpt4Top1Acc,
+    gpt4Top5Acc,
+    gpt3p5FinetuneTop1Acc,
+  } = useMemo(() => {
+    const gpt3p5Top1Acc = getAcc(gpt3p5Top1);
+    const gpt3p5FinetuneTop1Acc = getAcc(gpt3p5FinetuneTop1);
+    const gpt3p5Top5Acc = getAcc(gpt3p5Top5);
+    const gpt4Top1Acc = getAcc(gpt4Top1);
+    const gpt4Top5Acc = getAcc(gpt4Top5);
+    return {
+      gpt3p5Top1Acc,
+      gpt3p5FinetuneTop1Acc,
+      gpt3p5Top5Acc,
+      gpt4Top1Acc,
+      gpt4Top5Acc,
+    };
+  }, [gpt3p5Top1, gpt3p5Top5, gpt4Top1, gpt4Top5]);
 
   const classificationsAggregated = useCallback(
     (data: Data) =>
@@ -153,6 +196,7 @@ export default function Page() {
   const aggregated = useMemo(() => {
     return {
       gpt3p5Top1: classificationsAggregated(gpt3p5Top1),
+      gpt3p5FinetuneTop1: classificationsAggregated(gpt3p5FinetuneTop1),
       gpt3p5Top5: classificationsAggregated(gpt3p5Top5),
       gpt4Top1: classificationsAggregated(gpt4Top1),
       gpt4Top5: classificationsAggregated(gpt4Top5),
@@ -177,6 +221,11 @@ export default function Page() {
         top5Acc: gpt3p5Top5Acc,
       },
       {
+        id: "gpt-3.5-turbo-fine-tuned",
+        top1Acc: gpt3p5FinetuneTop1Acc,
+        top5Acc: "/",
+      },
+      {
         id: "gpt-4",
         top1Acc: gpt4Top1Acc,
         top5Acc: gpt4Top5Acc,
@@ -190,6 +239,10 @@ export default function Page() {
         serveNetTop5: getPercentString(serveNetTop5Benchmark[classification]),
         serveNetTop1: getPercentString(serveNetTop1Benchmark[classification]),
         gpt3p5Top1: getAccByClassifiaction(gpt3p5Top1, classification),
+        gpt3p5FinetuneTop1: getAccByClassifiaction(
+          gpt3p5FinetuneTop1,
+          classification
+        ),
         gpt3p5Top5: getAccByClassifiaction(gpt3p5Top5, classification),
         gpt4Top1: getAccByClassifiaction(gpt4Top1, classification),
         gpt4Top5: getAccByClassifiaction(gpt4Top5, classification),
@@ -293,6 +346,7 @@ export default function Page() {
                       gpt4Top1: gpt4Top1Expend.result,
                       gpt4Top5: gpt4Top5Expend.result,
                       gpt3p5Top1Equal: data.equal,
+                      // gpt3p5FinetuneTop1Equal
                       gpt3p5Top5Equal: gpt3p5Top5Expend.equal,
                       gpt4Top1Equal: gpt4Top1Expend.equal,
                       gpt4Top5Equal: gpt4Top5Expend.equal,
@@ -315,6 +369,12 @@ export default function Page() {
                     render: render("gpt3p5Top1Equal"),
                     sorter: sorter("gpt3p5Top1Equal"),
                   },
+                  // {
+                  //   dataIndex: "gpt3p5FinetuneTop1",
+                  //   title: "gpt-3.5-turbo-fine-tuned Top-1",
+                  //   render: render("gpt3p5FinetuneTop1Equal"),
+                  //   sorter: sorter("gpt3p5FinetuneTop1Equal"),
+                  // },
                   {
                     dataIndex: "gpt3p5Top5",
                     title: "gpt-3.5-turbo Top-5",
@@ -363,6 +423,12 @@ export default function Page() {
             dataIndex: "gpt3p5Top1",
             render: render("serveNetTop1", "gpt3p5Top1"),
             sorter: sorter("gpt3p5Top1"),
+          },
+          {
+            title: "gpt-3.5-turbo-fine-tuned Top-1",
+            dataIndex: "gpt3p5FinetuneTop1",
+            render: render("serveNetTop1", "gpt3p5FinetuneTop1"),
+            sorter: sorter("gpt3p5FinetuneTop1"),
           },
           {
             title: "gpt-4 Top-1",
