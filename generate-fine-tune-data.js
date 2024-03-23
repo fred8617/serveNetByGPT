@@ -27,12 +27,21 @@ const dataset = Object.fromEntries(
   classifications.map((clz) => {
     const dataset = datas.filter((e) => e[2] === clz);
     const length = dataset.length;
-    const groups = chunk(dataset, Math.round(length * 0.8));
+    const groups = chunk(dataset, Math.round(length * 0.6));
+    const train=groups[0];
+    const validateAndTest=chunk(groups[1], Math.round(groups[1].length * 0.5))
+    const validate=validateAndTest[0];
+    const test=validateAndTest[1];
     return [
       clz,
       {
-        train: groups[0],
-        test: groups[1],
+        train,
+        trainTotal:train.length,
+        test,
+        testTotal:test.length,
+        validate,
+        validateTotal:validate.length,
+        total:length,
       },
     ];
   })
@@ -46,8 +55,11 @@ const trainDatas = Object.values(dataset)
 const testDatas = Object.values(dataset)
   .map((d) => d.test)
   .flat();
+const validateDatas=Object.values(dataset)
+.map((d) => d.validate)
+.flat();
 const fullPrompts = topNPrompts + classifications.join("\n");
-const jsonlText = trainDatas
+const trainJson = trainDatas
   .map(([name, description, classification]) =>
     JSON.stringify({
       messages: [
@@ -72,9 +84,9 @@ const jsonlText = trainDatas
   .join("\n");
 const filename = "./fine-tune.jsonl";
 fs.ensureFileSync(filename);
-fs.writeFileSync(filename, jsonlText);
+fs.writeFileSync(filename, trainJson);
 
-const jsonlValidation = testDatas.map(
+const validateJson = validateDatas.map(
   ([name, description, classification]) => ({
     name,
     description,
@@ -95,13 +107,31 @@ const jsonlValidation = testDatas.map(
   })
 );
 
-const vfilename = "./validation.json";
-fs.ensureFileSync(vfilename);
-fs.writeJSONSync(vfilename, jsonlValidation);
-// const openai = new OpenAI();
+const validatefilename = "./validate.json";
+fs.ensureFileSync(validatefilename);
+fs.writeJSONSync(validatefilename, validateJson);
 
-// // If you have access to Node fs we recommend using fs.createReadStream():
-// await openai.files.create({
-//   file: fs.createReadStream(filename),
-//   purpose: "fine-tune",
-// });
+const testJson = testDatas.map(
+  ([name, description, classification]) => ({
+    name,
+    description,
+    classification,
+    fullPrompts,
+    messages: [
+      {
+        role: "system",
+        content: fullPrompts,
+      },
+      {
+        role: "user",
+        content: [`Service Name: ${name}`, `Description: ${description}`].join(
+          "\n"
+        ),
+      },
+    ],
+  })
+);
+
+const testfilename = "./test.json";
+fs.ensureFileSync(testfilename);
+fs.writeJSONSync(testfilename, testJson);

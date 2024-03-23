@@ -3,15 +3,22 @@ import fs from "fs-extra";
 import path from "path";
 import OpenAI from "openai";
 const openai = new OpenAI();
-(async () => {
-  const model = "ft:gpt-3.5-turbo-0125:personal::92f0eZFZ";
+const main = async (type) => {
+  const model = "ft:gpt-3.5-turbo-0125:personal::948GqbYi";
   const topN = 1;
-  const outputDir = path.resolve(__dirname, "app", model, `top${topN}`);
+  const outputDir = path.resolve(
+    __dirname,
+    "app",
+    "component",
+    model,
+    type,
+    `top${topN}`
+  );
   let { index, results } = getCheckpoint(outputDir);
   const wirte = (fullPrompts) =>
     writeCheckpoint({ index, fullPrompts, results }, outputDir);
   let f;
-  const validationDatas = fs.readJSONSync("./validation.json").slice(index);
+  const validationDatas = fs.readJSONSync(`./${type}.json`).slice(index);
   try {
     for (const {
       messages,
@@ -54,4 +61,7 @@ const openai = new OpenAI();
   } finally {
     wirte(f);
   }
-})();
+};
+
+main('validate');
+main('test');

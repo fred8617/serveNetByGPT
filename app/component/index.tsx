@@ -1,4 +1,6 @@
 "use client";
+import results from "./validate-classifiaction-result.json";
+import accResults from "./validate-top1-result.json";
 import gpt3p5Top1OriginJson from "./gpt-3.5-turbo/top1/checkpoint.json";
 import gpt3p5Top5OriginJson from "./gpt-3.5-turbo/top5/checkpoint.json";
 import gpt4Top1OriginJson from "./gpt-4-0125-preview/top1/checkpoint.json";
@@ -10,6 +12,8 @@ import { Table, Divider, Typography, Tooltip, Slider, Form, Affix } from "antd";
 import { BaseType } from "antd/es/typography/Base";
 import { useCallback, useMemo, useState } from "react";
 import sampleSize from "lodash/sampleSize";
+console.log(accResults);
+
 const gpt3p5Top1Origin = gpt3p5Top1OriginJson as Data;
 const gpt3p5Top5Origin = gpt3p5Top5OriginJson as Data;
 const gpt4Top1Origin = gpt4Top1OriginJson as Data;
@@ -29,45 +33,12 @@ type Data = {
 type AccData = {
   id: string;
   top1Acc: string;
-  top5Acc: string;
 };
 
 const getClassifications = (data: Data) => {
   return Object.values(data.results).map((r) => r.classification);
 };
 const allClassifications = [...new Set(getClassifications(gpt3p5Top1Origin))];
-console.log(gpt3p5Top1Origin.fullPrompts);
-
-console.log("gpt-3.5-classifiaction", [
-  ...new Set(Object.values(gpt3p5Top1Origin.results).map((r) => r.result)),
-]);
-console.log(
-  "gpt-3.5 not in the classifiactions",
-  Object.values(gpt3p5Top1Origin.results).filter(
-    (r) => !allClassifications.includes(r.result)
-  )
-);
-console.log("gpt-3.5-ft-classifiaction", [
-  ...new Set(
-    Object.values(gpt3p5FinetuneTop1Json.results).map((r) => r.result)
-  ),
-]);
-console.log(
-  "gpt-3.5-ft not in the classifiactions",
-  Object.values(gpt3p5FinetuneTop1Json.results).filter(
-    (r) => !allClassifications.includes(r.result)
-  )
-);
-
-console.log("gpt-4-classifiaction", [
-  ...new Set(Object.values(gpt4Top1Origin.results).map((r) => r.result)),
-]);
-console.log(
-  "gpt-4 not in the classifiactions",
-  Object.values(gpt4Top1Origin.results).filter(
-    (r) => !allClassifications.includes(r.result)
-  )
-);
 
 const getPercentString = (num: number) => {
   return parseFloat((num * 100).toString()).toFixed(2) + "%";
@@ -139,15 +110,7 @@ export default function Page() {
     }, [sampleNumber]);
 
   const classifications = useMemo(
-    () => [
-      ...new Set([
-        ...getClassifications(gpt3p5Top1),
-        ...getClassifications(gpt3p5Top5),
-        ...getClassifications(gpt4Top1),
-        ...getClassifications(gpt4Top5),
-        ...getClassifications(gpt3p5FinetuneTop1),
-      ]),
-    ],
+    () => Object.keys(results),
     [gpt3p5Top1, gpt3p5Top5, gpt4Top1, gpt4Top5]
   );
   const {
@@ -206,57 +169,43 @@ export default function Page() {
   const naiveModelAccDatas: AccData[] = useMemo(() => {
     return [
       {
-        id: "ServeNet(Origin)",
-        top1Acc: "63.31%",
-        top5Acc: "88.40%",
-      },
-      {
         id: "ServeNet",
         top1Acc: "69.95%",
-        top5Acc: "91.58%",
       },
       {
-        id: "gpt-3.5-turbo",
-        top1Acc: gpt3p5Top1Acc,
-        top5Acc: gpt3p5Top5Acc,
+        id: "gpt3.5-turbo",
+        top1Acc: getPercentString(accResults.gpt3p5Top1),
       },
       {
-        id: "gpt-3.5-turbo-fine-tuned",
-        top1Acc: gpt3p5FinetuneTop1Acc,
-        top5Acc: "/",
+        id: "gpt3.5-turbo FT",
+        top1Acc: getPercentString(accResults.gpt3p5FTTop1),
       },
       {
-        id: "gpt-4",
-        top1Acc: gpt4Top1Acc,
-        top5Acc: gpt4Top5Acc,
+        id: "gpt4",
+        top1Acc: getPercentString(accResults.gpt4Top1),
       },
     ];
-  }, [gpt3p5Top1Acc, gpt3p5Top5Acc, gpt4Top1Acc, gpt4Top5Acc]);
+  }, []);
   const datasOnEachClassification = useMemo(
     () =>
       classifications.map((classification) => ({
         id: classification,
-        serveNetTop5: getPercentString(serveNetTop5Benchmark[classification]),
         serveNetTop1: getPercentString(serveNetTop1Benchmark[classification]),
-        gpt3p5Top1: getAccByClassifiaction(gpt3p5Top1, classification),
-        gpt3p5FinetuneTop1: getAccByClassifiaction(
-          gpt3p5FinetuneTop1,
-          classification
-        ),
-        gpt3p5Top5: getAccByClassifiaction(gpt3p5Top5, classification),
-        gpt4Top1: getAccByClassifiaction(gpt4Top1, classification),
-        gpt4Top5: getAccByClassifiaction(gpt4Top5, classification),
+        // gpt3p5FinetuneTop1: getAccByClassifiaction(
+        //   gpt3p5FinetuneTop1,
+        //   classification
+        // ),
+        gpt4Top1: getPercentString(results[classification].gpt4Top1Acc),
+        gpt3p5Top1: getPercentString(results[classification].gpt3p5Top1Acc),
+        gpt3p5FTTop1: getPercentString(results[classification].gpt3p5FTTop1Acc),
+        ...results[classification],
       })),
     [classifications, gpt3p5Top1, gpt3p5Top5, gpt4Top1, gpt4Top5]
   );
   const render =
-    (
-      compareKey: "serveNetTop5" | "serveNetTop1",
-      aggregatedKey: keyof typeof aggregated
-    ) =>
+    (key: "gpt3p5" | "gpt4" | "gpt3p5FT") =>
     (value: string, record: (typeof datasOnEachClassification)[0]) => {
-      const dataAggregated = aggregated[aggregatedKey][record.id];
-      const serveNetPercent = Number(record[compareKey].replace("%", ""));
+      const serveNetPercent = Number(record["serveNetTop1"].replace("%", ""));
       const percent = Number(value.replace("%", ""));
       let type: BaseType = percent >= serveNetPercent ? "success" : "danger";
       switch (percent) {
@@ -267,9 +216,9 @@ export default function Page() {
       return (
         <Tooltip
           title={`
-        Total: ${dataAggregated.count}
-        Right: ${dataAggregated.right}
-        Wrong: ${dataAggregated.wrong}
+        Total: ${record.total}
+        Right: ${record[`${key}Right`]}
+        Wrong: ${record[`${key}Wrong`]}
     `}
         >
           <Text delete={percent === 0} strong={percent === 100} type={type}>
@@ -283,19 +232,6 @@ export default function Page() {
 
   return (
     <>
-      <Affix offsetTop={0}>
-        <Form style={{ background: "#fff" }}>
-          <Form.Item label="Random Sample Number">
-            <Slider
-              onChange={(number) => setSampleNumber(number)}
-              value={sampleNumber}
-              min={defaultSampleNumber}
-              max={gpt3p5Top1Origin.index}
-            />
-          </Form.Item>
-        </Form>
-      </Affix>
-
       <Table<AccData>
         size="small"
         rowKey={"id"}
@@ -305,12 +241,10 @@ export default function Page() {
         columns={[
           { dataIndex: "id", title: "Model" },
           { dataIndex: "top1Acc", title: "Top-1 Accuracy" },
-          { dataIndex: "top5Acc", title: "Top-5 Accuracy" },
         ]}
       />
       <Divider />
       <Table<(typeof datasOnEachClassification)[0]>
-        sticky={{ offsetHeader: 34 }}
         expandable={{
           expandedRowRender: (record) => {
             const render = (key) => {
@@ -421,37 +355,20 @@ export default function Page() {
           {
             title: "gpt-3.5-turbo Top-1",
             dataIndex: "gpt3p5Top1",
-            render: render("serveNetTop1", "gpt3p5Top1"),
+            render: render("gpt3p5"),
             sorter: sorter("gpt3p5Top1"),
           },
           {
-            title: "gpt-3.5-turbo-fine-tuned Top-1",
-            dataIndex: "gpt3p5FinetuneTop1",
-            render: render("serveNetTop1", "gpt3p5FinetuneTop1"),
-            sorter: sorter("gpt3p5FinetuneTop1"),
+            title: "gpt-3.5-turbo FT Top-1",
+            dataIndex: "gpt3p5FTTop1",
+            render: render("gpt3p5FT"),
+            sorter: sorter("gpt3p5FTTop1"),
           },
           {
             title: "gpt-4 Top-1",
             dataIndex: "gpt4Top1",
-            render: render("serveNetTop1", "gpt4Top1"),
+            render: render("gpt4"),
             sorter: sorter("gpt4Top1"),
-          },
-          {
-            title: "ServeNet Top-5",
-            dataIndex: "serveNetTop5",
-            sorter: sorter("serveNetTop5"),
-          },
-          {
-            title: "gpt-3.5-turbo Top-5",
-            dataIndex: "gpt3p5Top5",
-            render: render("serveNetTop5", "gpt3p5Top5"),
-            sorter: sorter("gpt3p5Top5"),
-          },
-          {
-            title: "gpt-4 Top-5",
-            dataIndex: "gpt4Top5",
-            render: render("serveNetTop5", "gpt4Top5"),
-            sorter: sorter("gpt4Top5"),
           },
         ]}
       />
